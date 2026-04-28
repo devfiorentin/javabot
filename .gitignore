@@ -1,0 +1,18 @@
+# Configurações sensíveis
+.env
+.idea
+
+# Compilados Java
+target/
+*.class
+*.jar
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+*.xml~
+
+# Sistema
+.DS_Store
+Thumbs.db
