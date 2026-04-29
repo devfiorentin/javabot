@@ -20,9 +20,11 @@ public class Main {
 
         Database.conectar();
 
+        long adminId = Long.parseLong(dotenv.get("ADMIN_ID", "0"));
+
         try {
             TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-            botsApi.registerBot(new MeuBot(token, username));
+            botsApi.registerBot(new MeuBot(token, username, adminId));
             System.out.println("✅ Bot iniciado com sucesso!");
         } catch (TelegramApiException e) {
             e.printStackTrace();

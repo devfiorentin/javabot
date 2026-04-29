@@ -6,5 +6,6 @@ public record Usuario(
         String nome,
         int xp,
         int moedas,
-        int nivel
+        int nivel,
+        int totalIndicacoes  // ← novo campo
 ) {}

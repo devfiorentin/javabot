@@ -66,4 +66,49 @@ public class PerguntaDAO {
             System.err.println("❌ Erro ao salvar resposta: " + e.getMessage());
         }
     }
+
+    public static Pergunta perguntaAleatoria() {
+        String sql = "SELECT * FROM perguntas ORDER BY RAND() LIMIT 1";
+
+        try (Connection con = Database.getConexao();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            if (rs.next()) return mapear(rs);
+
+        } catch (SQLException e) {
+            System.err.println("❌ Erro ao buscar pergunta aleatória: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public static Pergunta buscarPorId(int id) {
+        String sql = "SELECT * FROM perguntas WHERE id = ?";
+
+        try (Connection con = Database.getConexao();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return mapear(rs);
+
+        } catch (SQLException e) {
+            System.err.println("❌ Erro ao buscar pergunta: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private static Pergunta mapear(ResultSet rs) throws SQLException {
+        return new Pergunta(
+                rs.getInt("id"),
+                rs.getInt("licao_id"),
+                rs.getString("enunciado"),
+                rs.getString("opcao_a"),
+                rs.getString("opcao_b"),
+                rs.getString("opcao_c"),
+                rs.getString("opcao_d"),
+                rs.getString("resposta_correta"),
+                rs.getInt("xp_recompensa")
+        );
+    }
 }

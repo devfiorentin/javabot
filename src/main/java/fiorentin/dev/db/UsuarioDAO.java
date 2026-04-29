@@ -8,6 +8,48 @@ import java.util.List;
 
 public class UsuarioDAO {
 
+    public static List<Usuario> todos() {
+        String sql = "SELECT * FROM usuarios ORDER BY xp DESC";
+        List<Usuario> lista = new ArrayList<>();
+
+        try (Connection con = Database.getConexao();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) lista.add(mapear(rs));
+
+        } catch (SQLException e) {
+            System.err.println("❌ Erro ao listar usuários: " + e.getMessage());
+        }
+        return lista;
+    }
+
+    public static void setarXP(long id, int xp) {
+        executarUpdate("UPDATE usuarios SET xp = ? WHERE id = ?", xp, id);
+    }
+
+    public static void setarMoedas(long id, int moedas) {
+        executarUpdate("UPDATE usuarios SET moedas = ? WHERE id = ?", moedas, id);
+    }
+
+    public static void setarNivel(long id, int nivel) {
+        executarUpdate("UPDATE usuarios SET nivel = ? WHERE id = ?", nivel, id);
+    }
+
+    private static void executarUpdate(String sql, Object... params) {
+        try (Connection con = Database.getConexao();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            for (int i = 0; i < params.length; i++)
+                ps.setObject(i + 1, params[i]);
+
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            System.err.println("❌ Erro no update: " + e.getMessage());
+        }
+    }
+
     /**
      * Busca um usuário pelo ID do Telegram.
      * Retorna null se não existir.
@@ -21,16 +63,7 @@ public class UsuarioDAO {
             ps.setLong(1, telegramId);
             ResultSet rs = ps.executeQuery();
 
-            if (rs.next()) {
-                return new Usuario(
-                        rs.getLong("id"),
-                        rs.getString("username"),
-                        rs.getString("nome"),
-                        rs.getInt("xp"),
-                        rs.getInt("moedas"),
-                        rs.getInt("nivel")
-                );
-            }
+            if (rs.next()) return mapear(rs);
 
         } catch (SQLException e) {
             System.err.println("❌ Erro ao buscar usuário: " + e.getMessage());
@@ -71,7 +104,7 @@ public class UsuarioDAO {
         Usuario u = buscarPorId(id);
 
         if (u == null) {
-            u = new Usuario(id, username, nome, 0, 0, 1);
+            u = new Usuario(id, username, nome, 0, 0, 1, 0);
             salvar(u);
         }
 
@@ -82,6 +115,9 @@ public class UsuarioDAO {
      * Adiciona XP ao usuário e verifica se ele subiu de nível.
      */
     public static void adicionarXP(long id, int quantidade) {
+        // Verifica se tem XP duplo ativo
+        if (LojaDAO.temXpDuplo(id)) quantidade *= 2;
+
         String sql = "UPDATE usuarios SET xp = xp + ? WHERE id = ?";
 
         try (Connection con = Database.getConexao();
@@ -91,7 +127,7 @@ public class UsuarioDAO {
             ps.setLong(2, id);
             ps.executeUpdate();
 
-            verificarNivel(id); // verifica se subiu de nível após ganhar XP
+            verificarNivel(id);
 
         } catch (SQLException e) {
             System.err.println("❌ Erro ao adicionar XP: " + e.getMessage());
@@ -119,7 +155,6 @@ public class UsuarioDAO {
     /**
      * Calcula o nível baseado no XP e atualiza se mudou.
      * Fórmula: nível = 1 + (xp / 100)
-     * Nível 1 = 0~99 XP, Nível 2 = 100~199 XP, etc.
      */
     private static void verificarNivel(long id) {
         String sqlSelect = "SELECT xp, nivel FROM usuarios WHERE id = ?";
@@ -161,21 +196,63 @@ public class UsuarioDAO {
              PreparedStatement ps = con.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
-            while (rs.next()) {
-                lista.add(new Usuario(
-                        rs.getLong("id"),
-                        rs.getString("username"),
-                        rs.getString("nome"),
-                        rs.getInt("xp"),
-                        rs.getInt("moedas"),
-                        rs.getInt("nivel")
-                ));
-            }
+            while (rs.next()) lista.add(mapear(rs));
 
         } catch (SQLException e) {
             System.err.println("❌ Erro ao buscar ranking: " + e.getMessage());
         }
-
         return lista;
+    }
+
+    public static Usuario buscarPorUsername(String username) {
+        String sql = "SELECT * FROM usuarios WHERE LOWER(username) = ?";
+
+        try (Connection con = Database.getConexao();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, username.toLowerCase());
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return mapear(rs);
+
+        } catch (SQLException e) {
+            System.err.println("❌ Erro ao buscar por username: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public static void registrarIndicacao(long novoUsuarioId, long indicadorId) {
+        executarUpdate(
+                "UPDATE usuarios SET indicado_por = ? WHERE id = ? AND indicado_por IS NULL",
+                indicadorId, novoUsuarioId
+        );
+        executarUpdate(
+                "UPDATE usuarios SET total_indicacoes = total_indicacoes + 1 WHERE id = ?",
+                indicadorId
+        );
+    }
+
+    public static boolean jaFoiIndicado(long usuarioId) {
+        String sql = "SELECT indicado_por FROM usuarios WHERE id = ?";
+        try (Connection con = Database.getConexao();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setLong(1, usuarioId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getObject("indicado_por") != null;
+        } catch (SQLException e) {
+            System.err.println("❌ Erro ao verificar indicação: " + e.getMessage());
+        }
+        return false;
+    }
+
+    private static Usuario mapear(ResultSet rs) throws SQLException {
+        return new Usuario(
+                rs.getLong("id"),
+                rs.getString("username"),
+                rs.getString("nome"),
+                rs.getInt("xp"),
+                rs.getInt("moedas"),
+                rs.getInt("nivel"),
+                rs.getInt("total_indicacoes")
+        );
     }
 }
