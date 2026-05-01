@@ -20,7 +20,7 @@ public class Database {
                 + dotenv.get("DB_HOST") + ":"
                 + dotenv.get("DB_PORT") + "/"
                 + dotenv.get("DB_NAME")
-                + "?useSSL=false&serverTimezone=America/Sao_Paulo");
+                + "?useSSL=false&serverTimezone=America/Sao_Paulo&allowPublicKeyRetrieval=true");
         config.setUsername(dotenv.get("DB_USER"));
         config.setPassword(dotenv.get("DB_PASSWORD"));
 
